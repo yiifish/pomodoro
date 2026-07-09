@@ -1,3 +1,17 @@
+//! 主模块 / Main module
+//!
+//! 负责：
+//! - 定义 Tauri IPC 命令（start/pause/reset/skip/updateSettings）
+//! - 管理全局状态（AppState：计时器 + 配置）
+//! - 后台倒计时线程（每秒 tick，阶段结束自动切换）
+//! - 应用入口（setup、插件注册、托盘初始化）
+//!
+//! Handles:
+//! - Tauri IPC commands (start/pause/reset/skip/updateSettings)
+//! - Global state management (AppState: timer + config)
+//! - Background countdown thread (1-second ticks, auto phase switching)
+//! - App entry point (setup, plugins, tray init)
+
 mod config;
 mod notifications;
 mod timer;
@@ -9,15 +23,18 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 use timer::{TimerPhase, TimerState};
 
-// ─── App State ───────────────────────────────────────────────────
+// ─── 全局状态 / Global State ─────────────────────────────────────
 
+/// 应用全局状态，通过 Tauri 的 State 机制共享
+/// Shared across all command handlers via Tauri's State mechanism
 struct AppState {
     timer: Mutex<TimerState>,
     config: Mutex<ConfigManager>,
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────
+// ─── 辅助函数 / Helpers ──────────────────────────────────────────
 
+/// 根据阶段获取对应时长（秒）/ Gets duration in seconds for the given phase
 fn get_duration(config: &ConfigManager, phase: TimerPhase) -> u32 {
     match phase {
         TimerPhase::Working => config.settings.work_duration,
@@ -27,27 +44,32 @@ fn get_duration(config: &ConfigManager, phase: TimerPhase) -> u32 {
     }
 }
 
+/// 判断当前是否应该触发长休息 / Checks if a long break should be triggered
 fn should_long_break(config: &ConfigManager, completed: u32) -> bool {
     completed > 0 && completed % config.settings.cycles_before_long_break == 0
 }
 
-// ─── IPC Commands ─────────────────────────────────────────────────
+// ─── IPC 命令 / IPC Commands ──────────────────────────────────────
 
+/// 获取当前计时器状态 / Returns current timer state
 #[tauri::command]
 fn get_timer_state(state: tauri::State<AppState>) -> TimerState {
     state.timer.lock().unwrap().clone()
 }
 
+/// 获取设置 / Returns current settings
 #[tauri::command]
 fn get_settings(state: tauri::State<AppState>) -> config::Settings {
     state.config.lock().unwrap().settings.clone()
 }
 
+/// 获取统计数据 / Returns current stats
 #[tauri::command]
 fn get_stats(state: tauri::State<AppState>) -> config::Stats {
     state.config.lock().unwrap().stats.clone()
 }
 
+/// 更新设置并持久化 / Updates settings and persists to disk
 #[tauri::command]
 fn update_settings(
     state: tauri::State<AppState>,
@@ -58,14 +80,23 @@ fn update_settings(
     config.save_settings()
 }
 
+/// 开始计时 / Starts the timer
+///
+/// 启动一个后台线程，每秒递减 remaining_seconds
+/// 计时归零时自动切换阶段（专注 → 休息 → 待机）
+///
+/// Spawns a background thread that decrements remaining_seconds each second.
+/// When the timer hits zero, auto-switches phase (Working → Break → Idle).
 #[tauri::command]
 fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
     let mut timer = state.timer.lock().unwrap();
 
+    // 如果已经在运行，忽略 / Ignore if already running
     if timer.running && !timer.paused {
         return;
     }
 
+    // 非暂停状态：从配置读取时长 / Not paused: load duration from config
     if !timer.paused {
         let config = state.config.lock().unwrap();
         let phase = if timer.phase == TimerPhase::Idle {
@@ -86,6 +117,7 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
     let mut current = timer.clone();
     drop(timer);
 
+    // 后台倒计时线程 / Background countdown thread
     let app_clone = app.clone();
     std::thread::spawn(move || {
         loop {
@@ -94,10 +126,12 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
             let s = app_clone.state::<AppState>();
             let mut timer_guard = s.timer.lock().unwrap();
 
+            // 被外部暂停/停止 / Paused/stopped externally
             if timer_guard.paused || !timer_guard.running {
                 break;
             }
 
+            // 每秒递减并通知前端 / Decrement each second and notify frontend
             if timer_guard.remaining_seconds > 0 {
                 timer_guard.remaining_seconds -= 1;
                 current = timer_guard.clone();
@@ -109,6 +143,7 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
                 drop(timer_guard);
 
                 if phase == TimerPhase::Working {
+                    // ─── 番茄完成 / Pomodoro completed ───
                     let mut config = s.config.lock().unwrap();
                     let _ = config.record_pomodoro();
 
@@ -148,6 +183,7 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
                     );
                     continue;
                 } else {
+                    // ─── 休息结束 / Break ended ───
                     send_notification(&app_clone, "⏰ 休息结束", "开始新的番茄吧！");
 
                     if {
@@ -173,6 +209,7 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
                 }
             }
 
+            // 每分钟更新托盘图标 / Update tray icon every minute
             if current.remaining_seconds > 0 && current.remaining_seconds % 60 == 0 {
                 tray::update_tray_icon(
                     &app_clone,
@@ -185,6 +222,7 @@ fn start_timer(state: tauri::State<AppState>, app: AppHandle) {
     });
 }
 
+/// 暂停计时 / Pauses the timer
 #[tauri::command]
 fn pause_timer(state: tauri::State<AppState>) {
     let mut timer = state.timer.lock().unwrap();
@@ -192,6 +230,7 @@ fn pause_timer(state: tauri::State<AppState>) {
     timer.running = false;
 }
 
+/// 重置计时器到待机状态 / Resets timer to idle state
 #[tauri::command]
 fn reset_timer(state: tauri::State<AppState>, app: AppHandle) {
     let config = state.config.lock().unwrap();
@@ -214,6 +253,7 @@ fn reset_timer(state: tauri::State<AppState>, app: AppHandle) {
     tray::update_tray_icon(&app, 0, TimerPhase::Idle, "番茄钟 — 待机");
 }
 
+/// 跳过当前阶段 / Skips the current phase
 #[tauri::command]
 fn skip_timer(state: tauri::State<AppState>, app: AppHandle) {
     let phase = {
@@ -222,6 +262,7 @@ fn skip_timer(state: tauri::State<AppState>, app: AppHandle) {
     };
 
     if phase == TimerPhase::Working {
+        // 跳过专注也记录一个完成的番茄 / Skipping focus also records a pomodoro
         let mut config = state.config.lock().unwrap();
         let _ = config.record_pomodoro();
         let completed = config.stats.total_pomodoros;
@@ -250,6 +291,7 @@ fn skip_timer(state: tauri::State<AppState>, app: AppHandle) {
     let _ = app.emit("timer-tick", current);
 }
 
+/// 生成托盘 tooltip 文本 / Generates tray tooltip text
 fn tooltip_text(state: &TimerState) -> String {
     let m = state.remaining_seconds / 60;
     let s = state.remaining_seconds % 60;
@@ -262,13 +304,15 @@ fn tooltip_text(state: &TimerState) -> String {
     format!("番茄钟 — {} {:02}:{:02}", phase, m, s)
 }
 
-// ─── App Entry ───────────────────────────────────────────────────
+// ─── 应用入口 / App Entry ────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 注册通知插件 / Register notification plugin
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
+            // 获取 AppData 目录 / Get app data directory
             let app_dir = app
                 .path()
                 .app_data_dir()
@@ -280,6 +324,7 @@ pub fn run() {
             let initial_total = config.settings.work_duration;
             let initial_completed = config.stats.total_pomodoros;
 
+            // 向 Tauri 注册全局状态 / Register global state with Tauri
             app.manage(AppState {
                 timer: Mutex::new(TimerState {
                     phase: TimerPhase::Idle,
@@ -292,10 +337,12 @@ pub fn run() {
                 config: Mutex::new(config),
             });
 
+            // 初始化系统托盘 / Initialize system tray
             let _ = tray::setup_tray(app.handle());
 
             Ok(())
         })
+        // 注册 IPC 命令 / Register IPC commands
         .invoke_handler(tauri::generate_handler![
             get_timer_state,
             get_settings,
@@ -308,6 +355,7 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
+        // 退出时保存设置 / Save settings on exit
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 if let Some(state) = app.try_state::<AppState>() {

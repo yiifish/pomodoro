@@ -1,12 +1,23 @@
+// 设置面板 / Settings panel
+//
+// 支持的功能 / Supported settings:
+// - 专注时长、短休息、长休息（分:秒双输入）
+// - 长休息触发间隔（番茄个数）
+// - 始终置顶 / 提示音 / 桌面通知（开关）
+
 import { useStore } from '../stores/useStore';
 
-interface TimeInputProps {
+// ─── 时间输入子组件（分 + 秒）/ Time Input Sub-component ─────────
+
+/**
+ * 将总秒数拆分为分钟和秒两个输入框
+ * Splits total seconds into separate minutes and seconds inputs
+ */
+function TimeInput({ label, totalSeconds, onChange }: {
   label: string;
   totalSeconds: number;
   onChange: (seconds: number) => void;
-}
-
-function TimeInput({ label, totalSeconds, onChange }: TimeInputProps) {
+}) {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
 
@@ -45,16 +56,20 @@ function TimeInput({ label, totalSeconds, onChange }: TimeInputProps) {
   );
 }
 
+// ─── 设置面板主组件 / Settings Panel ─────────────────────────────
+
 export default function Settings() {
   const settings = useStore((s) => s.settings);
   const showSettings = useStore((s) => s.showSettings);
   const toggleSettings = useStore((s) => s.toggleSettings);
   const updateSettings = useStore((s) => s.updateSettings);
 
+  // 不可见时不渲染 / Don't render when not visible
   if (!showSettings) return null;
 
   return (
     <div className="settings-overlay">
+      {/* 标题栏 + 返回按钮 / Title bar + back button */}
       <div className="settings-top-bar">
         <span className="settings-title">⚙ 设置</span>
         <button className="btn-back" onClick={toggleSettings} title="返回">
@@ -81,7 +96,7 @@ export default function Settings() {
       />
 
       <div className="settings-row">
-        <span className="settings-label">长休息间隔（个番茄）</span>
+        <span className="settings-label">长休息间隔（个）</span>
         <input
           className="settings-input"
           type="number"
@@ -96,6 +111,7 @@ export default function Settings() {
         />
       </div>
 
+      {/* 始终置顶 / Always on top */}
       <div className="settings-row">
         <span className="settings-label">始终置顶</span>
         <button
@@ -104,6 +120,7 @@ export default function Settings() {
         />
       </div>
 
+      {/* 提示音 / Sound */}
       <div className="settings-row">
         <span className="settings-label">提示音</span>
         <button
@@ -112,6 +129,7 @@ export default function Settings() {
         />
       </div>
 
+      {/* 桌面通知 / Desktop notifications */}
       <div className="settings-row">
         <span className="settings-label">桌面通知</span>
         <button

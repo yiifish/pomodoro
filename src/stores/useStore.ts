@@ -1,8 +1,13 @@
+// 状态管理 + Tauri IPC 桥接 / State management + Tauri IPC bridge
+//
+// 使用 Zustand 管理全部前端状态，通过 Tauri invoke 调用 Rust 后端命令，
+// 通过 listen 监听后端推送的事件（timer-tick, timer-phase-end, play-sound 等）
+
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-// ─── Types ────────────────────────────────────────────────────────
+// ─── 类型定义 / Types ─────────────────────────────────────────────
 
 export type TimerPhase = 'Idle' | 'Working' | 'ShortBreak' | 'LongBreak';
 
@@ -16,9 +21,9 @@ export interface TimerState {
 }
 
 export interface Settings {
-  work_duration: number;       // 秒
-  break_duration: number;      // 秒
-  long_break_duration: number; // 秒
+  work_duration: number;        // 秒 / seconds
+  break_duration: number;       // 秒 / seconds
+  long_break_duration: number;  // 秒 / seconds
   cycles_before_long_break: number;
   always_on_top: boolean;
   sound_enabled: boolean;
@@ -31,8 +36,13 @@ export interface Stats {
   daily_records: Record<string, number>;
 }
 
-// ─── Web Audio Beep ───────────────────────────────────────────────
+// ─── Web Audio 提示音 / Web Audio Beep ────────────────────────────
 
+/**
+ * 用 Web Audio API 播放简短的提示音（880Hz → 660Hz，持续 0.4 秒）
+ * Plays a short beep using Web Audio API (880Hz → 660Hz, 0.4s duration)
+ * 不会弹出任何窗口 / No windows are spawned
+ */
 function playBeep() {
   try {
     const ctx = new AudioContext();
@@ -42,15 +52,15 @@ function playBeep() {
     gain.connect(ctx.destination);
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.12);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);       // 起始音高
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.12); // 降调
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4); // 渐弱
 
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.4);
   } catch {
-    // 静默忽略
+    // 浏览器不支持时静默忽略 / Silently ignore if unsupported
   }
 }
 
@@ -62,6 +72,7 @@ interface AppStore {
   stats: Stats;
   showSettings: boolean;
 
+  // 异步操作 / Async actions（调用 Rust IPC）
   fetchTimerState: () => Promise<void>;
   fetchSettings: () => Promise<void>;
   fetchStats: () => Promise<void>;
@@ -70,9 +81,11 @@ interface AppStore {
   resetTimer: () => Promise<void>;
   skipTimer: () => Promise<void>;
   updateSettings: (s: Partial<Settings>) => Promise<void>;
+
+  // 同步操作 / Sync actions（纯客户端）
   toggleSettings: () => void;
-  handleTick: (state: TimerState) => void;
-  handlePhaseEnd: (state: TimerState) => void;
+  handleTick: (state: TimerState) => void;         // 每秒滴答
+  handlePhaseEnd: (state: TimerState) => void;     // 阶段结束
 }
 
 export const useStore = create<AppStore>((set, get) => ({
@@ -99,6 +112,8 @@ export const useStore = create<AppStore>((set, get) => ({
     daily_records: {},
   },
   showSettings: false,
+
+  // ─── IPC 调用 / IPC Calls ───────────────────────
 
   fetchTimerState: async () => {
     try {
@@ -129,6 +144,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   startTimer: async () => {
     try {
+      // Rust 后端启动后台倒计时线程
       await invoke('start_timer');
     } catch (e) {
       console.error('startTimer:', e);
@@ -138,6 +154,7 @@ export const useStore = create<AppStore>((set, get) => ({
   pauseTimer: async () => {
     try {
       await invoke('pause_timer');
+      // 乐观更新 UI / Optimistic UI update
       set({ timer: { ...get().timer, running: false, paused: true } });
     } catch (e) {
       console.error('pauseTimer:', e);
@@ -170,6 +187,8 @@ export const useStore = create<AppStore>((set, get) => ({
     }
   },
 
+  // ─── 纯客户端操作 / Client-only Actions ─────────
+
   toggleSettings: () => set({ showSettings: !get().showSettings }),
 
   handleTick: (state: TimerState) => {
@@ -178,22 +197,29 @@ export const useStore = create<AppStore>((set, get) => ({
 
   handlePhaseEnd: async (state: TimerState) => {
     set({ timer: state });
+    // 阶段结束后刷新统计数据
     await get().fetchStats();
   },
 }));
 
-// ─── Event Listeners ───────────────────────────────────────────────
+// ─── 事件监听器初始化 / Event Listener Initialization ─────────────
 
+/**
+ * 注册所有 Tauri 事件监听器，应在应用启动时调用一次
+ * Registers all Tauri event listeners; should be called once on app startup
+ */
 export async function initEventListeners() {
+  // 每秒计时滴答 / 1-second timer tick
   await listen<TimerState>('timer-tick', (event) => {
     useStore.getState().handleTick(event.payload);
   });
 
+  // 阶段结束（专注→休息 or 休息→待机）/ Phase ended (focus→break or break→idle)
   await listen<TimerState>('timer-phase-end', (event) => {
     useStore.getState().handlePhaseEnd(event.payload);
   });
 
-  // 前端播放提示音
+  // 播放提示音（由 Rust 在阶段结束时触发）/ Play beep (triggered by Rust on phase end)
   await listen('play-sound', () => {
     const s = useStore.getState().settings;
     if (s.sound_enabled) {
@@ -201,6 +227,7 @@ export async function initEventListeners() {
     }
   });
 
+  // 托盘菜单：暂停/继续 / Tray menu: pause/resume
   await listen('tray-pause', () => {
     const store = useStore.getState();
     if (store.timer.running) {
@@ -210,10 +237,12 @@ export async function initEventListeners() {
     }
   });
 
+  // 托盘菜单：重置 / Tray menu: reset
   await listen('tray-reset', () => {
     useStore.getState().resetTimer();
   });
 
+  // 初始加载 / Initial data load
   const store = useStore.getState();
   await store.fetchTimerState();
   await store.fetchSettings();
