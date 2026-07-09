@@ -1,222 +1,254 @@
+/* ─── Google Fonts ──────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+/* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
-  --color-idle: #f59e0b;
-  --color-working: #ef4444;
-  --color-break: #10b981;
+  /* Palette — Modern Dark Cinema style */
+  --color-idle:    #F59E0B;  /* amber-500 */
+  --color-working: #EF4444;  /* red-500   */
+  --color-break:   #10B981;  /* emerald-500 */
 
-  --glass-bg: rgba(30, 30, 40, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --surface-deep:  #09090B;
+  --surface-base:  #0F0F13;
+  --surface-glass: rgba(15, 15, 19, 0.86);
+  --surface-overlay: rgba(9, 9, 11, 0.94);
 
-  --text-primary: rgba(255, 255, 255, 0.95);
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --text-muted: rgba(255, 255, 255, 0.35);
+  --border-hairline: rgba(255, 255, 255, 0.06);
+  --border-glow:      rgba(255, 255, 255, 0.10);
 
-  --btn-bg: rgba(255, 255, 255, 0.08);
-  --btn-hover: rgba(255, 255, 255, 0.15);
-  --btn-active: rgba(255, 255, 255, 0.04);
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.50);
+  --text-muted:     rgba(255, 255, 255, 0.25);
+
+  --btn-bg:     rgba(255, 255, 255, 0.06);
+  --btn-hover:  rgba(255, 255, 255, 0.12);
+  --btn-active: rgba(255, 255, 255, 0.03);
+
+  --easing-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --easing-out:  cubic-bezier(0.4, 0, 0.2, 1);
+
+  --radius-window: 18px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --radius: 16px;
-  --radius-sm: 8px;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
 }
 
+/* ─── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
 html, body {
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   overflow: hidden;
   background: transparent;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-primary);
   user-select: none;
   -webkit-user-select: none;
 }
 
 #root {
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   overflow: hidden;
   background: transparent;
-  border-radius: 16px;
+  border-radius: var(--radius-window);
 }
 
-body {
-  background: transparent;
-}
-
-/* —— 应用容器 —— */
+/* ─── App Container ────────────────────────────────────────── */
 .app-container {
-  width: 280px;
-  height: 260px;
+  width: 280px; height: 260px;
   position: relative;
-  border-radius: var(--radius);
+  border-radius: var(--radius-window);
   overflow: hidden;
+  background: var(--surface-deep);
 }
 
-/* —— 毛玻璃背景 —— */
+/* ─── Ambient Glow Blobs (氛围光晕) ──────────────────────────── */
 .glass-bg {
-  position: absolute;
-  inset: 0;
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--glass-shadow);
+  position: absolute; inset: 0;
+  background: var(--surface-glass);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-window);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   z-index: 0;
 }
 
-/* —— 内容层 —— */
+/* 顶部光晕 / Top glow accent */
+.glass-bg::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: 50%;
+  transform: translateX(-50%);
+  width: 200px; height: 80px;
+  background: radial-gradient(ellipse, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  transition: background 0.6s var(--easing-expo);
+}
+
+/* ─── Content Layer ────────────────────────────────────────── */
 .content {
   position: relative;
   z-index: 1;
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 8px 20px 14px;
+  padding: 6px 18px 14px;
+  overflow: visible;
 }
 
-/* —— 顶部栏：隐藏按钮 + 拖拽区 —— */
+/* ─── Drag Region ──────────────────────────────────────────── */
+.drag-region {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  -webkit-app-region: drag;
+}
+button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
+  -webkit-app-region: no-drag;
+}
+
+/* ─── Top Bar ──────────────────────────────────────────────── */
 .top-bar {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  height: 22px;
+  height: 20px;
   margin-bottom: 2px;
-  -webkit-app-region: no-drag;
-}
-
-/* 拖拽区域：覆盖整个窗口顶部 */
-.drag-region {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  -webkit-app-region: drag;
-}
-
-/* 所有按钮和交互元素需要取消拖拽 */
-button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
-  -webkit-app-region: no-drag;
 }
 
 .btn-hide {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px; height: 26px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   border-radius: 50%;
   cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  transition: all 0.15s;
+  transition: background 0.2s, color 0.2s;
   z-index: 2;
   position: relative;
 }
-.btn-hide:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-}
+.btn-hide:hover  { background: var(--btn-hover); color: var(--text-secondary); }
+.btn-hide:active { background: var(--btn-active); transform: scale(0.92); }
+.btn-hide:focus-visible { outline: 2px solid var(--color-idle); outline-offset: 2px; }
+.btn-hide svg { width: 12px; height: 12px; opacity: 0.5; }
+.btn-hide:hover svg { opacity: 0.85; }
 
-/* —— 顶部：状态 + 时间 —— */
+/* ─── Header ───────────────────────────────────────────────── */
 .header {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 7px; height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
-  transition: background 0.4s ease;
+  transition: background 0.5s var(--easing-expo), box-shadow 0.5s var(--easing-expo);
 }
-.status-dot.idle  { background: var(--color-idle);  box-shadow: 0 0 8px var(--color-idle); }
-.status-dot.working { background: var(--color-working); box-shadow: 0 0 8px var(--color-working); }
-.status-dot.break  { background: var(--color-break);  box-shadow: 0 0 8px var(--color-break); }
+.status-dot.idle    { background: var(--color-idle);    box-shadow: 0 0 12px var(--color-idle); }
+.status-dot.working { background: var(--color-working); box-shadow: 0 0 14px var(--color-working); }
+.status-dot.break   { background: var(--color-break);   box-shadow: 0 0 14px var(--color-break); }
 
 .phase-label {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--text-secondary);
-  letter-spacing: 0.5px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
 }
 
+/* ─── Timer Display ────────────────────────────────────────── */
 .timer-display {
-  font-size: 42px;
-  font-weight: 300;
-  letter-spacing: 2px;
+  font-size: 44px;
+  font-weight: 250;
+  letter-spacing: 3px;
   font-variant-numeric: tabular-nums;
-  margin: 4px 0 6px;
+  font-family: var(--font-mono);
+  margin: 2px 0 0;
   color: var(--text-primary);
-  transition: color 0.4s ease;
+  transition: color 0.5s var(--easing-expo);
 }
-.timer-display.idle  { color: var(--color-idle); }
+.timer-display.idle    { color: var(--color-idle); }
 .timer-display.working { color: var(--text-primary); }
-.timer-display.break  { color: var(--color-break); }
+.timer-display.break   { color: var(--color-break); }
 
-/* —— 中部：环形进度条 —— */
+/* ─── Progress Ring ────────────────────────────────────────── */
 .progress-area {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
+}
+
+.progress-ring-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;          /* 让光晕溢出不被裁剪 */
+}
+
+/* 环形发光层 / Ring glow layer */
+.progress-ring-glow {
+  position: absolute;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  opacity: 0.18;
+  filter: blur(18px);
+  transition: background 0.5s var(--easing-expo);
+  pointer-events: none;
 }
 
 .progress-ring {
   transform: rotate(-90deg);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
 }
 
 .progress-ring .bg {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.05);
+  transition: stroke 0.5s var(--easing-expo);
 }
 
 .progress-ring .fill {
   fill: none;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s ease, stroke 0.4s ease;
+  transition: stroke-dashoffset 0.7s var(--easing-expo),
+              stroke 0.5s var(--easing-expo);
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
-.progress-text {
-  font-size: 18px;
-  font-weight: 600;
-  fill: var(--text-primary);
-  transform: rotate(90deg);
-  transform-origin: center;
-}
-
-/* —— 底部：控制栏 —— */
+/* ─── Footer / Controls ────────────────────────────────────── */
 .footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 8px;
+  padding-bottom: 2px;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   border: none;
   background: var(--btn-bg);
   color: var(--text-primary);
@@ -225,77 +257,77 @@ button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
   font-family: var(--font);
   font-size: 12px;
   font-weight: 500;
-  padding: 5px 12px;
-  transition: all 0.15s ease;
+  padding: 6px 14px;
+  min-height: 30px;
+  transition:
+    background 0.15s var(--easing-out),
+    transform 0.15s var(--easing-out);
   outline: none;
   white-space: nowrap;
+  position: relative;
 }
 .btn:hover  { background: var(--btn-hover); }
-.btn:active { background: var(--btn-active); transform: scale(0.96); }
+.btn:active { background: var(--btn-active); transform: scale(0.95); }
+.btn:focus-visible { box-shadow: 0 0 0 2px var(--color-idle); }
 
 .btn-primary {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.10);
   font-weight: 600;
-  font-size: 13px;
-  padding: 5px 16px;
-  min-width: 56px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.btn-primary:hover { background: rgba(255, 255, 255, 0.28); }
+.btn-primary:hover  { background: rgba(255, 255, 255, 0.18); border-color: rgba(255,255,255,0.10); }
+.btn-primary:active { background: rgba(255, 255, 255, 0.06); }
 
 .btn-icon {
-  width: 28px;
-  height: 28px;
+  width: 30px; height: 30px;
   padding: 0;
   border-radius: 50%;
-  font-size: 13px;
   background: transparent;
+  min-height: unset;
+  font-size: 14px;
 }
-.btn-icon:hover { background: var(--btn-hover); }
+.btn-icon:hover  { background: var(--btn-hover); }
+.btn-icon:active { background: var(--btn-active); transform: scale(0.9); }
 
 .btn-sm {
   font-size: 11px;
-  padding: 4px 10px;
+  padding: 5px 10px;
+  min-height: 28px;
+  color: var(--text-secondary);
 }
+.btn-sm:hover { color: var(--text-primary); }
 
-.control-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.control-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.control-left  { display: flex; align-items: center; gap: 6px; }
+.control-right { display: flex; align-items: center; gap: 2px; }
 
 .pomo-count {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+  margin-right: 4px;
 }
 
-/* —— 设置面板（完全覆盖、圆角对齐） —— */
+/* ─── Settings Overlay ─────────────────────────────────────── */
 .settings-overlay {
   position: absolute;
   inset: 0;
   z-index: 10;
-  background: rgba(20, 20, 30, 0.95);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-radius: var(--radius);
-  padding: 14px 18px 12px;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border-radius: var(--radius-window);
+  padding: 16px 18px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  animation: fadeIn 0.2s ease;
+  animation: settingsIn 0.25s var(--easing-expo);
   overflow-y: auto;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.96); }
+@keyframes settingsIn {
+  from { opacity: 0; transform: scale(0.94); }
   to   { opacity: 1; transform: scale(1); }
 }
 
@@ -303,7 +335,7 @@ button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .settings-title {
@@ -311,27 +343,25 @@ button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 1px;
 }
 
 .btn-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px; height: 28px;
   border: none;
   background: var(--btn-bg);
   color: var(--text-secondary);
   border-radius: 50%;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.15s var(--easing-out);
 }
-.btn-back:hover {
-  background: var(--btn-hover);
-  color: var(--text-primary);
-}
+.btn-back:hover  { background: var(--btn-hover); color: var(--text-primary); }
+.btn-back:active { transform: scale(0.9); }
+.btn-back:focus-visible { box-shadow: 0 0 0 2px var(--color-idle); }
 
 .settings-row {
   display: flex;
@@ -346,50 +376,45 @@ button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
 }
 
 .settings-input {
-  width: 48px;
-  padding: 4px 6px;
+  width: 40px;
+  padding: 4px 4px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-hairline);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
   font-family: var(--font);
   font-size: 12px;
   text-align: center;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s;
+  min-height: 28px;
 }
-.settings-input:focus {
-  border-color: var(--color-idle);
-}
+.settings-input:focus { border-color: var(--color-idle); }
 
+/* Toggle */
 .settings-toggle {
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
+  width: 40px; height: 24px;
+  border-radius: 12px;
   border: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.10);
   cursor: pointer;
   position: relative;
-  transition: background 0.2s;
+  transition: background 0.25s var(--easing-expo);
   flex-shrink: 0;
 }
-.settings-toggle.on {
-  background: var(--color-idle);
-}
+.settings-toggle.on { background: var(--color-idle); }
 .settings-toggle::after {
   content: '';
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
+  top: 2px; left: 2px;
+  width: 20px; height: 20px;
   border-radius: 50%;
   background: white;
-  transition: transform 0.2s;
+  transition: transform 0.25s var(--easing-expo);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-.settings-toggle.on::after {
-  transform: translateX(16px);
-}
+.settings-toggle.on::after { transform: translateX(16px); }
+.settings-toggle:focus-visible { box-shadow: 0 0 0 2px var(--color-idle); }
 
-/* —— 滚动条隐藏 —— */
+/* ─── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar { display: none; }
