@@ -309,6 +309,14 @@ fn tooltip_text(state: &TimerState) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 单实例插件：防止重复启动 / Prevent multiple instances
+        // 第二个实例启动时会激活已有窗口而不是创建新窗口
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         // 注册通知插件 / Register notification plugin
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
