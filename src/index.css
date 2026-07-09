@@ -1,0 +1,395 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-idle: #f59e0b;
+  --color-working: #ef4444;
+  --color-break: #10b981;
+
+  --glass-bg: rgba(30, 30, 40, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.35);
+
+  --btn-bg: rgba(255, 255, 255, 0.08);
+  --btn-hover: rgba(255, 255, 255, 0.15);
+  --btn-active: rgba(255, 255, 255, 0.04);
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius: 16px;
+  --radius-sm: 8px;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text-primary);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  border-radius: 16px;
+}
+
+body {
+  background: transparent;
+}
+
+/* —— 应用容器 —— */
+.app-container {
+  width: 280px;
+  height: 260px;
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* —— 毛玻璃背景 —— */
+.glass-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  z-index: 0;
+}
+
+/* —— 内容层 —— */
+.content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 20px 14px;
+}
+
+/* —— 顶部栏：隐藏按钮 + 拖拽区 —— */
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  height: 22px;
+  margin-bottom: 2px;
+  -webkit-app-region: no-drag;
+}
+
+/* 拖拽区域：覆盖整个窗口顶部 */
+.drag-region {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  -webkit-app-region: drag;
+}
+
+/* 所有按钮和交互元素需要取消拖拽 */
+button, input, .btn, .settings-overlay, .top-bar, .footer, .progress-area {
+  -webkit-app-region: no-drag;
+}
+
+.btn-hide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.15s;
+  z-index: 2;
+  position: relative;
+}
+.btn-hide:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+/* —— 顶部：状态 + 时间 —— */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.4s ease;
+}
+.status-dot.idle  { background: var(--color-idle);  box-shadow: 0 0 8px var(--color-idle); }
+.status-dot.working { background: var(--color-working); box-shadow: 0 0 8px var(--color-working); }
+.status-dot.break  { background: var(--color-break);  box-shadow: 0 0 8px var(--color-break); }
+
+.phase-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.timer-display {
+  font-size: 42px;
+  font-weight: 300;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 6px;
+  color: var(--text-primary);
+  transition: color 0.4s ease;
+}
+.timer-display.idle  { color: var(--color-idle); }
+.timer-display.working { color: var(--text-primary); }
+.timer-display.break  { color: var(--color-break); }
+
+/* —— 中部：环形进度条 —— */
+.progress-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-ring .bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+.progress-ring .fill {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease, stroke 0.4s ease;
+}
+
+.progress-text {
+  font-size: 18px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  transform: rotate(90deg);
+  transform-origin: center;
+}
+
+/* —— 底部：控制栏 —— */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  transition: all 0.15s ease;
+  outline: none;
+  white-space: nowrap;
+}
+.btn:hover  { background: var(--btn-hover); }
+.btn:active { background: var(--btn-active); transform: scale(0.96); }
+
+.btn-primary {
+  background: rgba(255, 255, 255, 0.18);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 5px 16px;
+  min-width: 56px;
+}
+.btn-primary:hover { background: rgba(255, 255, 255, 0.28); }
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  background: transparent;
+}
+.btn-icon:hover { background: var(--btn-hover); }
+
+.btn-sm {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.control-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pomo-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* —— 设置面板（完全覆盖、圆角对齐） —— */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: var(--radius);
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+  overflow-y: auto;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.settings-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.settings-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.btn-back:hover {
+  background: var(--btn-hover);
+  color: var(--text-primary);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.settings-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-input {
+  width: 48px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.settings-input:focus {
+  border-color: var(--color-idle);
+}
+
+.settings-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.settings-toggle.on {
+  background: var(--color-idle);
+}
+.settings-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+.settings-toggle.on::after {
+  transform: translateX(16px);
+}
+
+/* —— 滚动条隐藏 —— */
+::-webkit-scrollbar { display: none; }
